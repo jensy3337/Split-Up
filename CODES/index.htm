@@ -4,7 +4,68 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SplitUp – Group Project Coordinator</title>
+<link rel="icon" href="data:,>
 <link rel="stylesheet" href="style.css">
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.8.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.8.2/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.8.2/firebase-firestore.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCkjTtq8EKmNvNKrGGxJMCfkaTJL3Udnys",
+      authDomain: "splitup-63c10.firebaseapp.com",
+      projectId: "splitup-63c10",
+      storageBucket: "splitup-63c10.firebasestorage.app",
+      messagingSenderId: "499990923460",
+      appId: "1:499990923460:web:01cfd46d9dc886cc642191",
+      measurementId: "G-HTTX6E8KW7"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const { GoogleAuthProvider } = firebase.auth;
+    const provider = new GoogleAuthProvider();
+
+    window.user = null;
+    window.appState = null;
+    window.db = firebase.firestore();
+
+    firebase.auth().onAuthStateChanged(async (user) => {
+      window.user = user;
+      if (user) {
+        const docRef = window.db.collection('users').doc(user.uid);
+        const snap = await docRef.get();
+        if (snap.exists) {
+          window.appState = snap.data().state;
+        } else {
+          const initialState = {
+            teams: [
+              {name: 'DBMS Mini Project', members: ['You', 'Aisha', 'Rohan', 'Meera'], code: 'DBMS-123', tasks: [], msgs: []},
+              {name: 'Marketing Case Study', members: ['You', 'Dev', 'Sana'], code: 'MKT-456', tasks: [], msgs: []}
+            ],
+            a: 0,
+            ch: 'chat'
+          };
+          window.appState = initialState;
+          await docRef.set({ state: initialState });
+        }
+        // Show signed-in UI
+        document.getElementById('userDisplay').style.display = 'block';
+        document.getElementById('loginBtn').style.display = 'none';
+      } else {
+        window.appState = null;
+        document.getElementById('userDisplay').style.display = 'none';
+        document.getElementById('loginBtn').style.display = 'block';
+      }
+    });
+
+    window.signIn = async () => {
+      await firebase.auth().signInWithPopup(provider);
+    };
+
+    window.signOut = async () => {
+      await firebase.auth().signOut();
+    };
+  </script>
 <script src="script.js" defer></script>
 </head>
 <body>
@@ -13,6 +74,9 @@
   <aside class="side" id="side"></aside>
   <main><div class="top" id="top"></div><div class="body" id="body"></div><div id="foot"></div></main>
 </div>
+  <!-- Auth UI -->
+  <div id="userDisplay" style="position:fixed;right:16px;top:16px;background:var(--mut);color:white;padding:4px 8px;border-radius:4px;display:none;z-index:1000;">Signed in as <span id="userEmail"></span></div>
+  <button id="loginBtn" style="position:fixed;right:16px;top:52px;background:var(--mut);color:white;padding:4px 8px;border-radius:4px;display:none;z-index:1000;" onclick="signIn()">Sign in with Google</button>
 
 </body>
 </html>

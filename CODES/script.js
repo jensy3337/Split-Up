@@ -1,9 +1,9 @@
 
 const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc=s=>String(s).replace(/[&<>"'\\]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','\\':'&#92;'}[c]));
 const COL=['#5865f2','#3ba55d','#eb459e','#e67e22','#00a8d6','#9b59b6'];
 const CH=[['chat','# team-chat'],['tasks','# task-board'],['contrib','# contributions'],['deadline','# deadlines'],['feedback','# peer-feedback'],['manage','Group settings']];
-const day=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const day=n=>{const d=new Date();d.setDate(d.getDate()+n);const loc=new Date(d.getTime()-d.getTimezoneOffset()*6e4);return loc.toISOString().slice(0,10)};
 const now=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 let uid=100;
 function mk(name,members,demo){
@@ -24,9 +24,12 @@ function mk(name,members,demo){
   return t;
 }
 let S=null;
-try{S=JSON.parse(localStorage.getItem('huddle-v1'))}catch(e){}
+if(window.user && window.appState) S = window.appState;
+else try{S=JSON.parse(localStorage.getItem('splitup-v1'))}catch(e){}
 if(!S||!S.teams){S={teams:[mk('DBMS Mini Project',['You','Aisha','Rohan','Meera'],true),mk('Marketing Case Study',['You','Dev','Sana'],false)],a:0,ch:'chat'};S.teams[1].tasks=[{id:7,t:'Pick a brand',who:'Dev',st:1,due:day(4)}]}
-function save(){try{localStorage.setItem('huddle-v1',JSON.stringify(S))}catch(e){}}
+else uid=Math.max(100,...S.teams.flatMap(t=>t.tasks.map(x=>x.id)).concat([0]));
+function save(){try{localStorage.setItem('splitup-v1',JSON.stringify(S))}catch(e){}
+if(window.user && window.appState){try{window.db.collection('users').doc(window.user.uid).set({state: S})}catch(e){}}}
 const T=()=>S.teams[S.a];
 const colorOf=(t,n)=>COL[Math.max(0,t.members.indexOf(n))%COL.length];
 const av=(t,n,on)=>`<div class="av ${on?'on':''}" style="background:${colorOf(t,n)}">${esc(n[0]).toUpperCase()}</div>`;
@@ -149,7 +152,7 @@ function deadline(){
 function feedback(){
   const t=T();head('# peer-feedback','Private rating: did everyone contribute?');
   const others=t.members.filter(m=>m!=='You');
-  $('#body').innerHTML=`<p style="color:var(--mut);max-width:560px">Rate each teammate’s contribution from 1 to 5. Ratings stay private and the teacher sees only the averages.</p>`+others.map(m=>{const r=t.fb[m]||0;return `<div class="row">${av(t,m)}<div style="width:80px">${esc(m)}</div><div class="stars" role="group" aria-label="Rate ${esc(m)}">${[1,2,3,4,5].map(n=>`<button class="${n<=r?'f':''}" onclick="rate('${esc(m)}',${n})" aria-label="${n} stars">★</button>`).join('')}</div></div>`}).join('')+
+  $('#body').innerHTML=`<p style="color:var(--mut);max-width:560px">Rate each teammate’s contribution from 1 to 5. Ratings stay private and the teacher sees only the averages.</p>`+others.map(m=>{const r=t.fb[m]||0;return `<div class="row">${av(t,m)}<div style="width:80px">${esc(m)}</div><div class="stars" role="group" aria-label="Rate ${esc(m)}">${[1,2,3,4,5].map(n=>`<button class="${n<=r?'f':''}" data-m="${esc(m)}" onclick="rate(this.dataset.m,${n})" aria-label="${n} stars">★</button>`).join('')}</div></div>`}).join('')+
   (Object.keys(t.fb).length?`<div class="alert" style="border-color:var(--ok)">Teacher view: ${others.map(m=>`${esc(m)} ${t.fb[m]?t.fb[m].toFixed(1):'–'}`).join(' · ')}</div>`:'');
 }
 window.rate=(m,n)=>{T().fb[m]=n;render()};
